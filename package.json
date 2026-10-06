@@ -10,7 +10,8 @@
     "deploy:ci": "wrangler d1 migrations apply DB --remote && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "types": "wrangler types --strict-vars=false",
+    "db:seed": "wrangler d1 execute DB --local --file seed/seed.sql",
+    "types": "wrangler types --strict-vars=false --env-file=scripts/no-secrets.env",
     "check": "astro check && tsc -p worker",
     "test": "vitest run",
     "scan:secrets": "node scripts/secret-scan.mjs"

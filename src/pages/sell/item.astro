@@ -1,0 +1,10 @@
+---
+import Shell from '../../layouts/Shell.astro';
+import ItemEditor from '../../components/sell/ItemEditor.tsx';
+import '../../styles/sell.css';
+---
+<Shell title="Edit item" nav="sell">
+  <p class="eyebrow"><a href="/sell">inventory</a> / edit</p>
+  <h1 class="glow-text">Edit item</h1>
+  <ItemEditor client:only="preact" />
+</Shell>

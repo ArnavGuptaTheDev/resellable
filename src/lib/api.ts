@@ -5,6 +5,8 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message?: string,
+    /** Per-field messages for 422 validation errors. */
+    public fields: Record<string, string> = {},
   ) {
     super(message ?? code);
   }
@@ -24,20 +26,22 @@ export async function api<T = unknown>(path: string, opts: { method?: Method; bo
     if (!session) redirectToLogin();
     headers['X-CSRF-Token'] = session.csrfToken;
   }
-  if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+  const isForm = opts.body instanceof FormData;
+  // FormData sets its own multipart Content-Type with the boundary.
+  if (opts.body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
 
   const res = await fetch(path, {
     method,
     headers,
     credentials: 'same-origin',
-    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
   });
 
   if (res.status === 401) redirectToLogin();
   const data = res.headers.get('Content-Type')?.includes('application/json') ? await res.json() : null;
   if (!res.ok) {
-    const err = (data ?? {}) as { error?: string; message?: string };
-    throw new ApiError(res.status, err.error ?? `http_${res.status}`, err.message);
+    const err = (data ?? {}) as { error?: string; message?: string; fields?: Record<string, string> };
+    throw new ApiError(res.status, err.error ?? `http_${res.status}`, err.message, err.fields);
   }
   return data as T;
 }

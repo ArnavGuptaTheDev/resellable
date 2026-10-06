@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import admin from './routes/admin';
 import auth from './routes/auth';
+import images from './routes/images';
+import items from './routes/items';
 import me from './routes/me';
 import type { AppEnv } from './types';
 
@@ -21,6 +23,8 @@ app.get('/api/health', (c) =>
 app.route('/auth', auth);
 app.route('/api/me', me);
 app.route('/api/admin', admin);
+app.route('/api/items', items);
+app.route('/img', images);
 
 // Anything under the Worker-first prefixes that no route claimed.
 app.notFound((c) => {

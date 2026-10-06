@@ -378,3 +378,7 @@ textarea:focus-visible {
     animation: none !important;
   }
 }
+
+.small {
+  font-size: 0.85rem;
+}

@@ -1,10 +1,10 @@
 ---
 import Shell from '../layouts/Shell.astro';
+import Inventory from '../components/sell/Inventory.tsx';
+import '../styles/sell.css';
 ---
-<Shell title="Sell" nav="sell">
+<Shell title="Inventory" nav="sell">
   <p class="eyebrow">// node 02 · sell</p>
-  <h1 class="glow-text">Sell</h1>
-  <div class="panel">
-    <p class="muted">Quick add, batch from photos and your inventory arrive in milestone 3.</p>
-  </div>
+  <h1 class="glow-text">Inventory</h1>
+  <Inventory client:only="preact" />
 </Shell>

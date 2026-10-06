@@ -21,12 +21,19 @@
       "migrations_dir": "migrations"
     }
   ],
-  // Plain, non-secret config. Secrets (GOOGLE_CLIENT_SECRET, SESSION_SECRET,
+  "r2_buckets": [
+    {
+      // Private bucket. Images are served only through the authenticated /img/* route.
+      // Create once with `npx wrangler r2 bucket create resellable-images`.
+      "binding": "IMAGES",
+      "bucket_name": "resellable-images"
+    }
+  ],
+  // Plain, non-secret config. Currency, upload limits etc. live in shared/config.ts. Secrets (GOOGLE_CLIENT_SECRET, SESSION_SECRET,
   // SUPERUSER_EMAILS) are set with `wrangler secret put` and never live here.
   "vars": {
     // Public OAuth client id (it appears in the Google sign-in URL anyway).
-    "GOOGLE_CLIENT_ID": "831131607860-ikbvd4egjuads07lkd5jp2obual99v4e.apps.googleusercontent.com",
-    "CURRENCY": "INR"
+    "GOOGLE_CLIENT_ID": "831131607860-ikbvd4egjuads07lkd5jp2obual99v4e.apps.googleusercontent.com"
   },
   "observability": { "enabled": true }
 }

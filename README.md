@@ -2,7 +2,7 @@
 
 Invite-only PWA for listing things to sell, building carts and negotiating one price per cart. Runs entirely on Cloudflare's free tier: Astro (static) for the UI, one Hono Worker for `/api/*`, `/auth/*` and `/img/*`, D1 for data and R2 for images.
 
-> This README grows with each milestone. R2 setup and the full config reference land in later milestones.
+> This README grows with each milestone.
 
 ## Requirements
 
@@ -60,9 +60,41 @@ Do this once, before the first deploy.
 
    Copy the `database_id` it prints into `wrangler.jsonc`, replacing `REPLACE_WITH_D1_DATABASE_ID`. The ID is not a secret, and committing it is fine.
 
-2. **Create the Google OAuth client** (see [Google OAuth](#google-oauth)). Put its client ID in `wrangler.jsonc` under `vars.GOOGLE_CLIENT_ID`.
-3. **Set the secrets** (see [Secrets](#secrets)).
-4. **Deploy:** run `npm run deploy` from your machine, or push to `main` once Workers Builds is connected.
+2. **Create the R2 bucket** for photos:
+
+   ```sh
+   npx wrangler r2 bucket create resellable-images
+   ```
+
+   The bucket name is already set in `wrangler.jsonc` (binding `IMAGES`). Keep the bucket **private**: don't enable its r2.dev URL or a custom domain. Photos are only served through the Worker's `/img/*` route, which requires a session.
+3. **Create the Google OAuth client** (see [Google OAuth](#google-oauth)). Put its client ID in `wrangler.jsonc` under `vars.GOOGLE_CLIENT_ID`.
+4. **Set the secrets** (see [Secrets](#secrets)).
+5. **Deploy:** run `npm run deploy` from your machine, or push to `main` once Workers Builds is connected.
+
+## Sample data (local only)
+
+```sh
+npm run db:seed
+```
+
+This loads example items, price tiers and a "Build a Robot" bundle, owned by `seller@example.com`, plus an invited buyer, `buyer@example.com`. Sign in as either with `/auth/dev-login?email=…`. The seed only runs against the local database.
+
+## Selling (milestone 3)
+
+| Screen | What it does |
+| --- | --- |
+| `/sell` | Inventory: search, filter by status and category, edit quantity and price inline, bulk list / hide / move to draft / set category, CSV export |
+| `/sell/add` | Quick add: photos (camera or gallery), title, quantity, price, condition. **Save & add another** keeps category, tags and condition. |
+| `/sell/batch` | Batch from photos: each photo becomes a draft. Then fill in title → Enter → quantity → Enter → price → Enter, row by row. |
+| `/sell/item?id=…` | Full editor: photos (add, remove, make cover), all fields, status, duplicate |
+
+How photos are handled:
+
+- **In the browser:** photos are resized and compressed before upload. The main image is at most 1600 px on the long edge and the thumbnail at most 400 px. Both are WebP, or JPEG on browsers that can't encode WebP. EXIF rotation is applied.
+- **In the Worker:** the real file type is checked from the file's first bytes, plus the size and the per-item photo limit, before anything is stored.
+- **Storage keys:** files go to `photos/<uuid>.webp` in R2. The keys never change, so `/img/*` sends `Cache-Control: private, max-age=31536000, immutable`.
+- **Who can see a photo:** photos of listed or sold-out items are visible to anyone signed in. Photos of drafts and hidden items are visible only to their seller and superusers.
+- **Duplicates:** a duplicated item shares its photos' R2 files with the original. A file is deleted only once no item uses it.
 
 ## Google OAuth
 
@@ -192,7 +224,9 @@ It exits non-zero if it finds anything.
 | `migrations/` | D1 schema migrations, applied in order |
 | `test/` | Vitest unit tests |
 | `scripts/secret-scan.mjs` | Pre-commit secret scan |
-| `wrangler.jsonc` | Worker config: static assets, D1 binding, plain vars |
+| `shared/config.ts` | **App config**: currency, upload limits (photo count, sizes, quality), field limits |
+| `seed/seed.sql` | Local sample data (`npm run db:seed`) |
+| `wrangler.jsonc` | Worker config: static assets, D1 and R2 bindings, plain vars |
 
 ## Theme and fonts
 
