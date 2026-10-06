@@ -1,0 +1,12 @@
+# Copy to .dev.vars for local dev. In production set each with `npx wrangler secret put NAME`.
+
+# Google OAuth client (Google Cloud Console > APIs & Services > Credentials)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Comma-separated emails that always have access and the superuser role
+SUPERUSER_EMAILS=you@example.com
+
+# Random string, at least 32 chars. Signs the short-lived OAuth state cookie.
+# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+SESSION_SECRET=

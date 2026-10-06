@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "resellable",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    // Astro's static build output.
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    // Only these paths hit the Worker; everything else is served straight from assets.
+    "run_worker_first": ["/api/*", "/auth/*", "/img/*"]
+  },
+  "observability": { "enabled": true }
+}

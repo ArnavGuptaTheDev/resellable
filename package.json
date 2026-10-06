@@ -1,0 +1,32 @@
+{
+  "name": "resellable",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n web,api -c cyan,magenta \"astro dev\" \"wrangler dev --port 8787\"",
+    "build": "astro build",
+    "preview": "astro build && wrangler dev",
+    "deploy": "astro build && wrangler deploy",
+    "deploy:ci": "wrangler deploy",
+    "types": "wrangler types",
+    "check": "astro check && tsc -p worker",
+    "test": "vitest run",
+    "scan:secrets": "node scripts/secret-scan.mjs"
+  },
+  "dependencies": {
+    "@fontsource/chakra-petch": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "hono": "^4.13.13",
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/preact": "^6.0.5",
+    "astro": "^7.3.5",
+    "concurrently": "^9.2.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11",
+    "wrangler": "^4.147.0"
+  }
+}

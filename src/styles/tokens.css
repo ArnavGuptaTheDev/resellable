@@ -1,0 +1,135 @@
+/*
+ * Theme tokens. Edit colors here; everything else reads these variables.
+ *
+ * Light = "printed tech manual with neon ink": warm paper, near-black ink,
+ * fluorescent magenta / cyan inks used sparingly for accents.
+ * Dark  = night-city terminal: deep blue-black, neon cyan + magenta.
+ *
+ * All text/background pairs below meet WCAG AA (4.5:1 for body text).
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg: #f3f0e6;            /* paper */
+  --bg-grid: #e4dfcf;       /* faint drafting grid */
+  --surface: #fbf9f3;
+  --surface-2: #ece7d8;
+  --border: #c9c2ad;
+  --border-strong: #15161c;
+
+  /* Text */
+  --text: #15161c;          /* ink, 15.8:1 on paper */
+  --text-muted: #4b4f5c;    /* 7.2:1 */
+  --text-on-accent: #fbf9f3;
+
+  /* Inks */
+  --accent: #b8007f;        /* magenta ink, 5.5:1 on paper */
+  --accent-2: #006b85;      /* cyan ink, 5.4:1 */
+  --accent-3: #6b5d00;      /* acid-yellow ink darkened for text, 5.8:1 */
+  --highlight: #fff04d;     /* highlighter swipe behind text, never text itself */
+  --ok: #1d6b3a;
+  --warn: #8a4b00;
+  --danger: #b3122e;
+
+  /* Buttons */
+  --btn-bg: #15161c;
+  --btn-text: #fbf9f3;
+  --btn-border: #15161c;
+  --btn-hover-shadow: 3px 3px 0 var(--accent);
+
+  /* Decoration (no glow on paper; offset print shadow instead) */
+  --glow: none;
+  --glow-strong: none;
+  --text-glow: none;
+  --card-shadow: 4px 4px 0 var(--border);
+  --scanline-opacity: 0;
+
+  /* Type */
+  --font-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  --font-text: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  /* Spacing / shape */
+  --radius: 2px;
+  --radius-lg: 4px;
+  --gutter: 16px;
+  --max-width: 1120px;
+  --tabbar-height: 60px;
+  --header-height: 56px;
+  --cut: 10px;              /* clipped-corner size */
+}
+
+/* Dark via system preference, unless the user forced light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #07080d;
+    --bg-grid: #10131d;
+    --surface: #0e111a;
+    --surface-2: #151a27;
+    --border: #262d40;
+    --border-strong: #00e5ff;
+    --text: #e7eaf3;          /* 16.6:1 */
+    --text-muted: #9aa3b8;    /* 7.9:1 */
+    --text-on-accent: #05060a;
+    --accent: #ff2bd6;        /* 6.3:1 */
+    --accent-2: #00e5ff;      /* 13:1 */
+    --accent-3: #e8ff3a;      /* 17.9:1 */
+    --highlight: #3a2a00;
+    --ok: #39ff88;
+    --warn: #ffb547;
+    --danger: #ff5c7a;
+    --btn-bg: #00e5ff;
+    --btn-text: #05060a;
+    --btn-border: #00e5ff;
+    --btn-hover-shadow: 0 0 0 1px #00e5ff, 0 0 18px rgba(0, 229, 255, 0.55);
+    --glow: 0 0 0 1px rgba(0, 229, 255, 0.25), 0 0 16px rgba(0, 229, 255, 0.12);
+    --glow-strong: 0 0 0 1px rgba(255, 43, 214, 0.5), 0 0 24px rgba(255, 43, 214, 0.35);
+    --text-glow: 0 0 10px rgba(0, 229, 255, 0.55);
+    --card-shadow: none;
+    --scanline-opacity: 0.06;
+  }
+}
+
+/* Dark via the manual toggle. Keep in sync with the block above. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #07080d;
+  --bg-grid: #10131d;
+  --surface: #0e111a;
+  --surface-2: #151a27;
+  --border: #262d40;
+  --border-strong: #00e5ff;
+  --text: #e7eaf3;
+  --text-muted: #9aa3b8;
+  --text-on-accent: #05060a;
+  --accent: #ff2bd6;
+  --accent-2: #00e5ff;
+  --accent-3: #e8ff3a;
+  --highlight: #3a2a00;
+  --ok: #39ff88;
+  --warn: #ffb547;
+  --danger: #ff5c7a;
+  --btn-bg: #00e5ff;
+  --btn-text: #05060a;
+  --btn-border: #00e5ff;
+  --btn-hover-shadow: 0 0 0 1px #00e5ff, 0 0 18px rgba(0, 229, 255, 0.55);
+  --glow: 0 0 0 1px rgba(0, 229, 255, 0.25), 0 0 16px rgba(0, 229, 255, 0.12);
+  --glow-strong: 0 0 0 1px rgba(255, 43, 214, 0.5), 0 0 24px rgba(255, 43, 214, 0.35);
+  --text-glow: 0 0 10px rgba(0, 229, 255, 0.55);
+  --card-shadow: none;
+  --scanline-opacity: 0.06;
+}
+
+/* Decoration is off for anyone who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --glow: none !important;
+    --glow-strong: none !important;
+    --text-glow: none !important;
+    --btn-hover-shadow: none !important;
+    --scanline-opacity: 0 !important;
+  }
+}
