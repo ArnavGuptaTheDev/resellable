@@ -184,6 +184,7 @@ This repository is public. **Never commit credentials.** Real values live in onl
 | --- | --- | --- |
 | `GOOGLE_CLIENT_SECRET` | secret | Google OAuth client secret |
 | `SESSION_SECRET` | secret | Random string of at least 32 characters; signs the short-lived OAuth state cookie. Generate it with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Use a different value in production and locally. |
+| `VAPID_PRIVATE_KEY` | secret | Web Push private key (see [PWA](#pwa-install-and-notifications)). |
 | `SUPERUSER_EMAILS` | secret | Comma-separated emails that always have access and the superuser role. It's kept secret so the repo doesn't publish them. |
 | `GOOGLE_CLIENT_ID` | plain var | Public by design; it's in `wrangler.jsonc` → `vars`. Don't also set it as a secret. |
 | `APP_ORIGIN`, `DEV_LOGIN` | local only | Dev-proxy origin and the dev-login switch. Never set in production. |
@@ -259,7 +260,12 @@ All in `shared/pricing.ts`. Money is integer paise.
 - **In the Worker:** checks the real format from the file's first bytes, the size, and the per-item limit.
 - **Storage:** files go to `photos/<uuid>` keys in the private R2 bucket. `/img/*` serves them only to signed-in users allowed to see them, with `Cache-Control: private, max-age=31536000, immutable`.
 
-### PWA
+### PWA, install and notifications
+
+- **Install banner:** offers one-tap install where the browser supports it; on iPhone it shows the "Add to Home Screen" steps.
+- **Notifications:** Web Push for deal activity. Turn them on from the banner or on `/settings`, which also has a test button. On iOS they need the app installed (iOS 16.4+).
+- **Keys:** the VAPID public key is `vars.VAPID_PUBLIC_KEY` in `wrangler.jsonc`. The private key is the `VAPID_PRIVATE_KEY` secret. Generate a pair with `node scripts/vapid.mjs`; for production, run `node scripts/vapid.mjs --private | npx wrangler secret put VAPID_PRIVATE_KEY` and put the matching public key in `wrangler.jsonc`. Changing keys invalidates existing subscriptions.
+
 
 - **Manifest:** `public/manifest.webmanifest` has icons (including maskable), shortcuts, and a **Web Share Target**: share photos from the gallery to Resellable to batch-add them.
 - **Service worker:** `scripts/sw.template.js` is built into `dist/sw.js` with this build's file list and version:

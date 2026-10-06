@@ -7,6 +7,7 @@ import { cart, deals } from './routes/deals';
 import images from './routes/images';
 import items from './routes/items';
 import me from './routes/me';
+import push from './routes/push';
 import type { AppEnv } from './types';
 
 const app = new Hono<AppEnv>();
@@ -31,6 +32,7 @@ app.route('/api/bundles', bundles);
 app.route('/api/catalog', catalog);
 app.route('/api/cart', cart);
 app.route('/api/deals', deals);
+app.route('/api/push', push);
 app.route('/img', images);
 
 // Anything under the Worker-first prefixes that no route claimed.

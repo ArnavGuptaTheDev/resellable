@@ -33,7 +33,11 @@
   // SUPERUSER_EMAILS) are set with `wrangler secret put` and never live here.
   "vars": {
     // Public OAuth client id (it appears in the Google sign-in URL anyway).
-    "GOOGLE_CLIENT_ID": "831131607860-ikbvd4egjuads07lkd5jp2obual99v4e.apps.googleusercontent.com"
+    "GOOGLE_CLIENT_ID": "831131607860-ikbvd4egjuads07lkd5jp2obual99v4e.apps.googleusercontent.com",
+    // Web Push: public half of the VAPID key pair (the private half is the VAPID_PRIVATE_KEY secret).
+    "VAPID_PUBLIC_KEY": "BHhRLBhpIAaidjdBeKzjWONXpAwEAcDGuK9tpl0-lCBxTqNuJSvO31DLBurbq4DjwAysPS01aYSjyTehBQ40awg",
+    // Identifies this app to push services (Apple requires an https: or mailto: URL).
+    "VAPID_SUBJECT": "https://resellable.arnavg.me"
   },
   "observability": { "enabled": true }
 }

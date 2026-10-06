@@ -18,6 +18,7 @@ import {
   updateLine,
   type AddInput,
 } from '../lib/deals';
+import { notifyDeal, type DealEvent } from '../lib/notify';
 import { requireUser } from '../middleware';
 import type { AppEnv } from '../types';
 
@@ -31,6 +32,11 @@ async function run<T>(c: Ctx, fn: () => Promise<T>) {
     if (err instanceof DealError) return c.json({ error: err.code, message: err.message }, err.status);
     throw err;
   }
+}
+
+/** Tell the other party, after the response (never delays or fails the request). */
+function notify(c: Ctx, event: DealEvent, extra: { message?: string; reason?: string | null } = {}) {
+  c.executionCtx.waitUntil(notifyDeal(c.env, id(c), c.get('user').id, event, extra).catch((err) => console.warn('notify', err)));
 }
 
 const body = <T>(c: Ctx) => c.req.json<T>().catch(() => ({}) as T);
@@ -75,6 +81,7 @@ const ok = (c: Ctx) => c.json({ ok: true });
 deals.patch('/:id{[0-9]+}/lines/:lineId{[0-9]+}', (c) =>
   run(c, async () => {
     await updateLine(c.env.DB, c.get('user'), id(c), id(c, 'lineId'), await body(c), activeSellerArg(c.env));
+    notify(c, 'cart_changed');
     return ok(c);
   }),
 );
@@ -82,6 +89,7 @@ deals.patch('/:id{[0-9]+}/lines/:lineId{[0-9]+}', (c) =>
 deals.delete('/:id{[0-9]+}/lines/:lineId{[0-9]+}', (c) =>
   run(c, async () => {
     await removeLine(c.env.DB, c.get('user'), id(c), id(c, 'lineId'));
+    notify(c, 'cart_changed');
     return ok(c);
   }),
 );
@@ -89,6 +97,7 @@ deals.delete('/:id{[0-9]+}/lines/:lineId{[0-9]+}', (c) =>
 deals.post('/:id{[0-9]+}/submit', (c) =>
   run(c, async () => {
     await submitCart(c.env.DB, c.get('user'), id(c), await body(c), activeSellerArg(c.env));
+    notify(c, 'submitted');
     return ok(c);
   }),
 );
@@ -96,6 +105,7 @@ deals.post('/:id{[0-9]+}/submit', (c) =>
 deals.post('/:id{[0-9]+}/offers', (c) =>
   run(c, async () => {
     await makeOffer(c.env.DB, c.get('user'), id(c), await body(c));
+    notify(c, 'offer');
     return ok(c);
   }),
 );
@@ -104,6 +114,7 @@ deals.post('/:id{[0-9]+}/accept', (c) =>
   run(c, async () => {
     const b = await body<{ offerId?: unknown }>(c);
     await acceptOffer(c.env.DB, c.get('user'), id(c), b.offerId);
+    notify(c, 'accepted');
     return ok(c);
   }),
 );
@@ -112,6 +123,7 @@ deals.post('/:id{[0-9]+}/messages', (c) =>
   run(c, async () => {
     const b = await body<{ body?: unknown }>(c);
     await addMessage(c.env.DB, c.get('user'), id(c), b.body);
+    notify(c, 'message', { message: String(b.body).trim() });
     return ok(c);
   }),
 );
@@ -119,18 +131,20 @@ deals.post('/:id{[0-9]+}/messages', (c) =>
 deals.post('/:id{[0-9]+}/fulfilment', (c) =>
   run(c, async () => {
     await setFulfilment(c.env.DB, c.get('user'), id(c), await body(c));
+    notify(c, 'fulfilment');
     return ok(c);
   }),
 );
 
-for (const [path, action] of [
-  ['paid', 'mark_paid'],
-  ['fulfilled', 'mark_fulfilled'],
-  ['complete', 'complete'],
+for (const [path, action, event] of [
+  ['paid', 'mark_paid', 'paid'],
+  ['fulfilled', 'mark_fulfilled', 'fulfilled'],
+  ['complete', 'complete', 'completed'],
 ] as const) {
   deals.post(`/:id{[0-9]+}/${path}`, (c) =>
     run(c, async () => {
       await stepStatus(c.env.DB, c.get('user'), id(c), action);
+      notify(c, event);
       return ok(c);
     }),
   );
@@ -138,7 +152,9 @@ for (const [path, action] of [
 
 deals.post('/:id{[0-9]+}/cancel', (c) =>
   run(c, async () => {
-    await cancelDeal(c.env.DB, c.get('user'), id(c), await body(c));
+    const b = await body<{ reason?: unknown }>(c);
+    await cancelDeal(c.env.DB, c.get('user'), id(c), b);
+    notify(c, 'cancelled', { reason: typeof b.reason === 'string' ? b.reason.trim() || null : null });
     return ok(c);
   }),
 );

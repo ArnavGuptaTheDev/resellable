@@ -1,0 +1,29 @@
+---
+import Shell from '../layouts/Shell.astro';
+import Settings from '../components/settings/Settings.tsx';
+import '../styles/sell.css';
+import '../styles/shop.css';
+---
+<Shell title="Settings">
+  <p class="eyebrow">// config</p>
+  <h1 class="glow-text">Settings</h1>
+  <Settings client:only="preact" />
+</Shell>
+
+<style is:global>
+  .settings {
+    display: grid;
+    gap: 16px;
+    max-width: 720px;
+  }
+  .row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .steps-list {
+    padding-left: 20px;
+    line-height: 1.8;
+  }
+</style>

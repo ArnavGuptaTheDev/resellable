@@ -8,6 +8,8 @@ interface Env {
   SUPERUSER_EMAILS: string;
   /** Optional. Public origin when it differs from the request URL (e.g. the astro dev proxy). */
   APP_ORIGIN?: string;
+  /** Web Push (VAPID) private key, base64url P-256 scalar. Secret. Push is off without it. */
+  VAPID_PRIVATE_KEY?: string;
   /** Local dev only: "true" enables /auth/dev-login on localhost. Never set in production. */
   DEV_LOGIN?: string;
 }

@@ -43,10 +43,14 @@ export default function DealPage() {
     void load(true);
     const t = setInterval(() => document.visibilityState === 'visible' && void load(), POLL_MS);
     const onVis = () => document.visibilityState === 'visible' && void load();
+    // A push notification arrived while this page is open: fetch now instead of waiting for the next poll.
+    const onPush = () => void load();
     document.addEventListener('visibilitychange', onVis);
+    document.addEventListener('deal:refresh', onPush);
     return () => {
       clearInterval(t);
       document.removeEventListener('visibilitychange', onVis);
+      document.removeEventListener('deal:refresh', onPush);
     };
   }, [id]);
 

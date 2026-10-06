@@ -20,3 +20,7 @@ APP_ORIGIN=http://localhost:4321
 # Local only. Enables /auth/dev-login?email=... on localhost so you can sign in
 # as any invited email without Google. Never set this in production.
 DEV_LOGIN=true
+
+# Web Push (optional locally). Generate a local pair: node scripts/vapid.mjs
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=

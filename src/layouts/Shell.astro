@@ -49,6 +49,13 @@ const links = [
         var t = localStorage.getItem('theme');
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
+      // Keep the install prompt for our own "Install" button (fires once, maybe before modules load).
+      window.__bip = null;
+      addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__bip = e;
+        dispatchEvent(new Event('bip-ready'));
+      });
     </script>
   </head>
   <body>
@@ -84,7 +91,7 @@ const links = [
           <ThemeToggle />
           {!isPublic && (
             <div class="user-chip" hidden>
-              <span class="avatar" aria-hidden="true"></span>
+              <a class="avatar" href="/settings" aria-label="Settings" title="Settings"></a>
               <button type="button" class="icon-btn sign-out" aria-label="Sign out" title="Sign out">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
@@ -104,6 +111,17 @@ const links = [
     </main>
 
     {!isPublic && (
+      <div class="pwa-banner" role="region" aria-label="App" hidden>
+        <img src="/icons/icon-192.png" alt="" width="40" height="40" />
+        <p class="pb-text"></p>
+        <div class="pb-actions">
+          <button type="button" class="btn pb-yes"></button>
+          <button type="button" class="btn btn-ghost pb-no">Not now</button>
+        </div>
+      </div>
+    )}
+
+    {!isPublic && (
       <nav class="tabbar" aria-label="Primary">
         {links.map((l) => (
           <a href={l.href} data-needs={l.needs} aria-current={nav === l.id ? 'page' : undefined}>
@@ -121,6 +139,53 @@ const links = [
       import { getSession, loginUrl } from '../lib/session';
       import { api } from '../lib/api';
       import { renderBadges, type Attention } from '../lib/badges';
+      import { dismiss, dismissedRecently, disablePush, enablePush, installState, pushState, promptInstall, syncPush } from '../lib/pwa';
+
+      /** One banner at a time: install first (iOS needs it for notifications), then notifications. */
+      async function pickBanner() {
+        const el = document.querySelector<HTMLElement>('.pwa-banner');
+        if (!el) return;
+        const text = el.querySelector('.pb-text')!;
+        const yes = el.querySelector<HTMLButtonElement>('.pb-yes')!;
+        const no = el.querySelector<HTMLButtonElement>('.pb-no')!;
+        const show = (msg: string, label: string, onYes: () => Promise<void> | void, what: 'install' | 'push') => {
+          text.textContent = msg;
+          yes.textContent = label;
+          yes.onclick = async () => {
+            yes.disabled = true;
+            try {
+              await onYes();
+            } finally {
+              yes.disabled = false;
+              el.hidden = true;
+              void pickBanner();
+            }
+          };
+          no.onclick = () => {
+            dismiss(what);
+            el.hidden = true;
+            void pickBanner();
+          };
+          el.hidden = false;
+        };
+
+        const install = installState();
+        if (install === 'prompt' && !dismissedRecently('install')) {
+          return show('Install Resellable: opens like an app, works offline, and can notify you about offers.', 'Install', async () => {
+            if (!(await promptInstall())) dismiss('install');
+          }, 'install');
+        }
+        if (install === 'ios' && !dismissedRecently('install')) {
+          return show('Install on iPhone: tap Share, then “Add to Home Screen”. Needed for notifications on iOS.', 'Got it', () => dismiss('install'), 'install');
+        }
+        if ((await pushState()) === 'off' && !dismissedRecently('push')) {
+          return show('Get a notification when someone makes an offer, accepts, or messages you.', 'Turn on', async () => {
+            const state = await enablePush();
+            if (state !== 'on') dismiss('push');
+          }, 'push');
+        }
+        el.hidden = true;
+      }
 
       /** Cart units + deals needing the user. Refreshed every minute while visible and on demand. */
       async function refreshBadges() {
@@ -163,6 +228,8 @@ const links = [
 
           document.querySelector('.sign-out')?.addEventListener('click', async () => {
             try {
+              // Stop this device receiving the signed-out user's notifications.
+              await disablePush().catch(() => {});
               await api('/auth/logout', { method: 'POST' });
             } finally {
               location.replace('/login');
@@ -174,6 +241,18 @@ const links = [
           setInterval(() => document.visibilityState === 'visible' && void refreshBadges(), 60_000);
           document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && void refreshBadges());
           document.addEventListener('attention:refresh', () => void refreshBadges());
+
+          void syncPush();
+          void pickBanner();
+          addEventListener('bip-ready', () => void pickBanner());
+          addEventListener('appinstalled', () => void pickBanner());
+          // A push arrived while the app is open: refresh badges and the open deal.
+          navigator.serviceWorker?.addEventListener('message', (e) => {
+            if ((e.data as { type?: string })?.type === 'push') {
+              void refreshBadges();
+              document.dispatchEvent(new CustomEvent('deal:refresh'));
+            }
+          });
         } catch (err) {
           console.error(err);
           root.classList.remove('auth-pending');
@@ -258,6 +337,63 @@ const links = [
     top: 6px;
     left: calc(50% + 8px);
     margin: 0;
+  }
+
+  .pwa-banner {
+    position: fixed;
+    left: var(--gutter);
+    right: var(--gutter);
+    bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 10px);
+    z-index: 70;
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 10px 12px;
+    align-items: center;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    box-shadow: var(--card-shadow), var(--glow-strong);
+  }
+
+  .pwa-banner[hidden] {
+    display: none;
+  }
+
+  .pwa-banner img {
+    border-radius: 8px;
+  }
+
+  .pb-text {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .pb-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .pb-actions .btn {
+    min-height: 40px;
+    font-size: 0.85rem;
+  }
+
+  @media (min-width: 768px) {
+    .pwa-banner {
+      bottom: 16px;
+      grid-template-columns: 40px 1fr auto;
+    }
+    .pb-actions {
+      grid-column: auto;
+    }
+  }
+
+  .avatar {
+    text-decoration: none;
   }
 
   .avatar {

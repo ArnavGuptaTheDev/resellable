@@ -16,6 +16,10 @@ export function renderBadges(a: Attention) {
     el.textContent = a.deals ? String(a.deals) : '';
     el.hidden = !a.deals;
   });
+  // Installed app icon badge (Badging API, where supported).
+  const nav = navigator as Navigator & { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+  if (a.deals) void nav.setAppBadge?.(a.deals).catch(() => {});
+  else void nav.clearAppBadge?.().catch(() => {});
 }
 
 export function notifyCartChanged(a?: Attention) {

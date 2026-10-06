@@ -62,3 +62,12 @@ Choices made where the spec left room. Each one has a line of reasoning, so it's
 - **App icons are rendered from the brand mark with Chakra Petch and committed as PNGs,** including a maskable version with a safe-zone margin for Android.
 - **Below 400 px wide, the header shows only the R/ mark.** That leaves room for the cart, theme and sign-out buttons on small phones.
 - **There's no custom "Install" button.** Chrome and Android offer installation natively once the manifest and service worker are present, and an extra button would just be noise.
+
+## Install prompt and notifications
+
+- **The install prompt is an in-app banner**: one tap where the browser supports it (Chrome, Edge, Android), and "Share → Add to Home Screen" steps on iPhone. It's dismissable, comes back after 14 days, and hides once installed.
+- **Notifications use standard Web Push with VAPID.** Encryption (RFC 8291) and signing (RFC 8292) are written with WebCrypto because Node's `web-push` doesn't run on Workers. It's free tier, with no third-party service.
+- **Notifications are per device and opt-in from a tap**, as browsers and iOS require. Signing out turns them off on that device. Dead subscriptions are pruned automatically.
+- **The other party is notified** about offers, acceptance, messages, cart changes, hand-over details, paid, shipped/picked up, completed and cancelled. A buyer's private cart never notifies the seller.
+- **Notifications for the same deal replace each other** (same tag), so a busy chat doesn't flood the tray.
+- **Pushes are sent after the response** (`waitUntil`), so a slow push service never slows an action down.

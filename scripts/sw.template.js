@@ -88,3 +88,76 @@ async function receiveShare(req) {
   }
   return Response.redirect('/sell/batch?shared=1', 303);
 }
+
+// ------------------------------------------------------------------ push notifications
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: 'Resellable', body: event.data ? event.data.text() : '' };
+  }
+  const url = data.url || '/deals';
+  event.waitUntil(
+    (async () => {
+      // Open pages refresh straight away (badges, the deal being viewed).
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const w of windows) w.postMessage({ type: 'push', url });
+      await self.registration.showNotification(data.title || 'Resellable', {
+        body: data.body || '',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/badge-96.png',
+        tag: data.tag || undefined,
+        renotify: !!data.tag,
+        data: { url },
+      });
+    })(),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || '/deals', self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      // Reuse an open window: the exact page if open, else any app window.
+      const exact = windows.find((w) => w.url === target);
+      if (exact) return exact.focus();
+      const any = windows.find((w) => new URL(w.url).origin === self.location.origin);
+      if (any) {
+        await any.focus();
+        return any.navigate(target);
+      }
+      return self.clients.openWindow(target);
+    })(),
+  );
+});
+
+// The browser rotated the subscription: re-subscribe and tell the server (the session cookie goes with it).
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      const res = await fetch('/api/push/key', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const { publicKey } = await res.json();
+      if (!publicKey) return;
+      const raw = atob(publicKey.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((publicKey.length + 3) % 4));
+      const sub = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: Uint8Array.from(raw, (c) => c.charCodeAt(0)),
+      });
+      // CSRF: the server requires the per-session token; fetch it from /api/me first.
+      const me = await fetch('/api/me', { credentials: 'same-origin' });
+      if (!me.ok) return;
+      const { csrfToken } = await me.json();
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify(sub.toJSON()),
+      });
+    })(),
+  );
+});
