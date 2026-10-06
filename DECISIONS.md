@@ -32,3 +32,22 @@ Choices made where the spec left room. Each one has a line of reasoning, so it's
 - **Bundle search uses `LIKE` on title and description.** FTS5 covers items, the dominant search. Bundles are few, so they appear on the first results page when no item-only filter is set.
 - **A bundle cover must be a photo of one of its items.** It's served to buyers while the bundle is listed, even if that item is hidden.
 - **"Add to bundle" adds quantity 1 per selected item**, increasing an existing line. Quantities can be adjusted in the bundle editor afterwards.
+
+## Cart, deals and negotiation (milestone 5)
+
+- **"Submitted" means the opening offer is waiting for the seller's first move.** Any counter-offer or cart edit after that moves the deal to "negotiating".
+- **New lines can only be added while it's a cart.** During negotiation, either side can change quantities or remove lines, and only the buyer proposes per-line prices. This keeps "both sides can propose line changes" without letting a seller push extra items into a buyer's deal.
+- **A line's list price snapshot is taken again when its quantity changes.** Tier pricing depends on quantity, so the original snapshot would be wrong.
+- **Stock is checked when adding to the cart and when submitting, and enforced only at agreement.** The early checks give quick feedback. The agreement batch is the real guarantee (atomic, with the `CHECK (quantity >= 0)` constraint).
+- **`deals.agree_token` doubles as a per-operation token.** Every guarded transition stamps a fresh one, and dependent writes in the same batch (stock moves, events) only apply if their request won. That rules out double decrements and stray timeline events.
+- **Accept sends the offer ID it's accepting.** If a newer offer arrived in the meantime, accepting is refused instead of agreeing to an amount the user didn't see.
+- **"Mark shipped / picked up" requires a hand-over method.** The spec has both sides pick the method before hand-over.
+- **The seller marks paid, then shipped or picked up; the buyer confirms receipt.** This follows the spec's ordering exactly.
+- **Cancelling a cart empties it.** Lines are soft-removed and the cart deal is marked cancelled, freeing the one-open-cart slot.
+- **Chat opens once the cart is submitted** and stays open after completion or cancellation, for follow-ups. Sellers never see carts.
+- **Only the buyer and seller can open a deal; superusers can't.** Deals are private negotiations. Superusers' "everything" covers access and moderation, not reading other people's chats.
+- **The deal page polls every 4 seconds while visible**, with `?since=<updated_at>`, so an unchanged deal costs one small read. Header badges refresh every 60 seconds, and also on focus and after cart actions.
+- **A deal "needs you" when** the other side did something you haven't seen, or it's your move (a live offer from them; for the buyer, paying after agreement; for the seller, marking hand-over once paid).
+- **The seller's "how to pay" note is edited under Deals → Selling.** It's shown to the buyer from agreement on.
+- **Photos of items in your deals stay visible to both parties** even after the item is hidden or sold out.
+- **Timeline ties within the same millisecond sort as offer, then message, then event**, so an offer appears before the status change it caused.

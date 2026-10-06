@@ -1,0 +1,11 @@
+---
+import Shell from '../layouts/Shell.astro';
+import DealPage from '../components/deals/DealPage.tsx';
+import '../styles/sell.css';
+import '../styles/shop.css';
+import '../styles/deals.css';
+---
+<Shell title="Deal" nav="deals">
+  <p class="eyebrow back"><a href="/deals">← deals</a></p>
+  <DealPage client:only="preact" />
+</Shell>

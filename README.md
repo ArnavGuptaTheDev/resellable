@@ -96,6 +96,22 @@ This loads example items, price tiers and a "Build a Robot" bundle, owned by `se
 | `/` | Browse and search (FTS5 over title, description and tags), with filters for category, condition, has price / make an offer, and bundles only |
 | `/item?id=…` | Photo gallery, price with quantity tiers, stock, seller, and bundles that contain the item |
 | `/bundle?id=…` | What's inside, the total bought separately, the saving, and how many bundles current stock can make |
+| `/cart` | One cart per seller: change quantities, propose prices, see the list total and your proposed total, then send it with an opening offer |
+| `/deals`, `/deal?id=…` | Negotiation: counter-offers, accept, chat, then pay and hand over. The page refreshes itself every few seconds. |
+
+### Deal lifecycle
+
+```
+cart → submitted → negotiating → agreed → paid → fulfilled → completed
+                (cancelled from any state before fulfilled)
+```
+
+- **Offers:** an offer is one amount for the whole cart. Only the side that did **not** make the live offer can accept it. Changing the cart while negotiating withdraws the live offer.
+- **Agreement:** a single D1 batch marks the deal agreed, takes the stock (bundles expanded into their components) and records exactly what it took in `deal_stock_moves`. If another deal took the stock first, the batch fails as a whole and the user sees which item ran short.
+- **Cancelling after agreement:** puts back exactly what was recorded, even if the bundle has changed since. Items that were automatically marked sold out go back to listed.
+- **Payment and hand-over happen outside the app.** The seller's "how to pay" note (set under **Deals → Selling**) is shown once a price is agreed.
+
+The rules live in `shared/deals.ts` (state machine) and `worker/lib/deals.ts` (database operations). Tests: `test/deals.test.ts`, `test/deal-db.test.ts` (stock race, restore on cancel) and `test/pricing.test.ts`.
 
 How photos are handled:
 

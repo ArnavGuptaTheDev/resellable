@@ -58,11 +58,24 @@ const links = [
         {!isPublic && (
           <nav class="top-nav" aria-label="Primary">
             {links.map((l) => (
-              <a href={l.href} data-needs={l.needs} aria-current={nav === l.id ? 'page' : undefined}>{l.label}</a>
+              <a href={l.href} data-needs={l.needs} aria-current={nav === l.id ? 'page' : undefined}>
+                {l.label}
+                {l.id === 'deals' && <span class="badge" data-badge="deals" hidden></span>}
+              </a>
             ))}
           </nav>
         )}
         <div class="header-actions">
+          {!isPublic && (
+            <a class="icon-btn cart-link" href="/cart" aria-label="Cart" title="Cart">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 4h2l2.4 11h10.2L20 8H7" />
+                <circle cx="9.5" cy="19" r="1.4" />
+                <circle cx="17" cy="19" r="1.4" />
+              </svg>
+              <span class="badge" data-badge="cart" hidden></span>
+            </a>
+          )}
           <ThemeToggle />
           {!isPublic && (
             <div class="user-chip" hidden>
@@ -93,6 +106,7 @@ const links = [
               <path d={l.icon} />
             </svg>
             <span>{l.label}</span>
+            {l.id === 'deals' && <span class="badge" data-badge="deals" hidden></span>}
           </a>
         ))}
       </nav>
@@ -101,6 +115,16 @@ const links = [
     <script>
       import { getSession, loginUrl } from '../lib/session';
       import { api } from '../lib/api';
+      import { renderBadges, type Attention } from '../lib/badges';
+
+      /** Cart units + deals needing the user. Refreshed every minute while visible and on demand. */
+      async function refreshBadges() {
+        try {
+          renderBadges(await api<Attention>('/api/deals/attention'));
+        } catch {
+          /* badges are best-effort */
+        }
+      }
 
       const root = document.documentElement;
       // Only signed-in pages render with .auth-pending; public pages skip this.
@@ -141,6 +165,10 @@ const links = [
           });
 
           root.classList.remove('auth-pending');
+          void refreshBadges();
+          setInterval(() => document.visibilityState === 'visible' && void refreshBadges(), 60_000);
+          document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && void refreshBadges());
+          document.addEventListener('attention:refresh', () => void refreshBadges());
         } catch (err) {
           console.error(err);
           root.classList.remove('auth-pending');
@@ -174,6 +202,50 @@ const links = [
 
   .user-chip[hidden] {
     display: none;
+  }
+
+  .cart-link {
+    position: relative;
+  }
+
+  .badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 4px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--text-on-accent);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0;
+    box-shadow: var(--glow-strong);
+  }
+
+  .badge[hidden] {
+    display: none;
+  }
+
+  .cart-link .badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    margin: 0;
+  }
+
+  .tabbar a {
+    position: relative;
+  }
+
+  .tabbar .badge {
+    position: absolute;
+    top: 6px;
+    left: calc(50% + 8px);
+    margin: 0;
   }
 
   .avatar {

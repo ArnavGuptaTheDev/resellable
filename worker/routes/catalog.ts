@@ -111,9 +111,9 @@ catalog.get('/items/:id{[0-9]+}', async (c) => {
   )
     .bind(activeSellerArg(c.env), Number(c.req.param('id')))
     .first<ItemRow & { seller_name: string | null; seller_active: number }>();
-  const own = row && (row.seller_id === user.id || user.role === 'superuser');
+  const canEdit = row && (row.seller_id === user.id || user.role === 'superuser');
   const public_ = row && (row.status === 'listed' || row.status === 'sold_out') && row.seller_active === 1;
-  if (!row || (!own && !public_)) return apiError(c, 404, 'not_found');
+  if (!row || (!canEdit && !public_)) return apiError(c, 404, 'not_found');
 
   const [photos, tiers, inBundles] = await Promise.all([
     getPhotos(c.env.DB, row.id),
@@ -140,21 +140,21 @@ catalog.get('/items/:id{[0-9]+}', async (c) => {
     bundles: bundles.map((b) => ({ id: b.id, title: b.title, price: b.price, available: b.available })),
     updatedAt: row.updated_at,
   };
-  return c.json({ item: detail, own: !!own });
+  return c.json({ item: detail, own: row.seller_id === user.id, canEdit: !!canEdit });
 });
 
 catalog.get('/bundles/:id{[0-9]+}', async (c) => {
   const user = c.get('user');
   const [bundle] = await loadBundles(c.env.DB, [Number(c.req.param('id'))]);
   if (!bundle) return apiError(c, 404, 'not_found');
-  const own = bundle.seller.id === user.id || user.role === 'superuser';
-  if (!own) {
+  const canEdit = bundle.seller.id === user.id || user.role === 'superuser';
+  if (!canEdit) {
     const active = await c.env.DB.prepare(`SELECT ${ACTIVE_SELLER_SQL} AS ok FROM users u WHERE u.id = ?`)
       .bind(activeSellerArg(c.env), bundle.seller.id)
       .first<{ ok: number }>();
     if (bundle.status !== 'listed' || active?.ok !== 1) return apiError(c, 404, 'not_found');
   }
-  return c.json({ bundle, own });
+  return c.json({ bundle, own: bundle.seller.id === user.id, canEdit });
 });
 
 export default catalog;

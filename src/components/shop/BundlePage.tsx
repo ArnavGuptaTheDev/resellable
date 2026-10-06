@@ -2,19 +2,22 @@ import { useEffect, useState } from 'preact/hooks';
 import type { BundleView } from '../../../shared/catalog';
 import { formatMoney } from '../../../shared/money';
 import { ApiError, api, errorMessage } from '../../lib/api';
+import AddToCart from './AddToCart';
 import { Img, Price } from './bits';
 
 export default function BundlePage() {
   const id = Number(new URLSearchParams(location.search).get('id'));
   const [bundle, setBundle] = useState<BundleView | null>(null);
   const [own, setOwn] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<{ bundle: BundleView; own: boolean }>(`/api/catalog/bundles/${id}`)
+    api<{ bundle: BundleView; own: boolean; canEdit: boolean }>(`/api/catalog/bundles/${id}`)
       .then((r) => {
         setBundle(r.bundle);
         setOwn(r.own);
+        setCanEdit(r.canEdit);
         document.title = `${r.bundle.title} · Resellable`;
       })
       .catch((err) => setError(err instanceof ApiError && err.status === 404 ? 'not_found' : errorMessage(err)));
@@ -79,9 +82,11 @@ export default function BundlePage() {
           <p class="tag tag-warn block">Short on: {short.map((c) => c.title).join(', ')}</p>
         )}
 
-        <div id="buy-slot" data-bundle-id={bundle.id} />
+        {bundle.status === 'listed' && bundle.price != null && (
+          <AddToCart kind="bundle" refId={bundle.id} price={bundle.price} available={bundle.available} own={own} />
+        )}
 
-        {own && (
+        {canEdit && (
           <p>
             <a class="btn btn-ghost" href={`/sell/bundle?id=${bundle.id}`}>
               Edit this bundle

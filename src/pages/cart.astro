@@ -1,0 +1,12 @@
+---
+import Shell from '../layouts/Shell.astro';
+import CartPage from '../components/deals/CartPage.tsx';
+import '../styles/sell.css';
+import '../styles/shop.css';
+import '../styles/deals.css';
+---
+<Shell title="Cart" nav="deals">
+  <p class="eyebrow">// cart</p>
+  <h1 class="glow-text">Cart</h1>
+  <CartPage client:only="preact" />
+</Shell>

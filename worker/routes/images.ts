@@ -22,7 +22,12 @@ images.get('/*', async (c) => {
     `SELECT 1 FROM item_photos p JOIN items i ON i.id = p.item_id
       WHERE (p.r2_key = ?1 OR p.thumb_key = ?1)
         AND (i.status IN ('listed', 'sold_out') OR i.seller_id = ?2 OR ?3 = 1
-             OR EXISTS (SELECT 1 FROM bundles b WHERE b.cover_photo_id = p.id AND b.status = 'listed'))
+             OR EXISTS (SELECT 1 FROM bundles b WHERE b.cover_photo_id = p.id AND b.status = 'listed')
+             -- deal participants keep seeing what they are buying / selling, even once it is hidden or sold out
+             OR EXISTS (SELECT 1 FROM deal_lines dl JOIN deals d ON d.id = dl.deal_id
+                         WHERE dl.item_id = i.id AND (d.buyer_id = ?2 OR d.seller_id = ?2))
+             OR EXISTS (SELECT 1 FROM deal_stock_moves sm JOIN deals d ON d.id = sm.deal_id
+                         WHERE sm.item_id = i.id AND (d.buyer_id = ?2 OR d.seller_id = ?2)))
       LIMIT 1`,
   )
     .bind(key, user.id, user.role === 'superuser' ? 1 : 0)

@@ -1,10 +1,12 @@
 ---
 import Shell from '../layouts/Shell.astro';
+import DealsList from '../components/deals/DealsList.tsx';
+import '../styles/sell.css';
+import '../styles/shop.css';
+import '../styles/deals.css';
 ---
 <Shell title="Deals" nav="deals">
   <p class="eyebrow">// node 03 · deals</p>
   <h1 class="glow-text">Deals</h1>
-  <div class="panel">
-    <p class="muted">Carts, offers and deal chat arrive in milestone 5.</p>
-  </div>
+  <DealsList client:only="preact" />
 </Shell>

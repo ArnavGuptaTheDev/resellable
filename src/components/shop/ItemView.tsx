@@ -3,19 +3,22 @@ import type { CatalogItemDetail } from '../../../shared/catalog';
 import { CONDITION_LABELS, STATUS_LABELS } from '../../../shared/items';
 import { formatMoney } from '../../../shared/money';
 import { ApiError, api, errorMessage } from '../../lib/api';
+import AddToCart from './AddToCart';
 import { Gallery, Price, TierTable } from './bits';
 
 export default function ItemView() {
   const id = Number(new URLSearchParams(location.search).get('id'));
   const [item, setItem] = useState<CatalogItemDetail | null>(null);
   const [own, setOwn] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<{ item: CatalogItemDetail; own: boolean }>(`/api/catalog/items/${id}`)
+    api<{ item: CatalogItemDetail; own: boolean; canEdit: boolean }>(`/api/catalog/items/${id}`)
       .then((r) => {
         setItem(r.item);
         setOwn(r.own);
+        setCanEdit(r.canEdit);
         document.title = `${r.item.title || 'Item'} · Resellable`;
       })
       .catch((err) => setError(err instanceof ApiError && err.status === 404 ? 'not_found' : errorMessage(err)));
@@ -68,9 +71,11 @@ export default function ItemView() {
           )}
         </dl>
 
-        <div id="buy-slot" data-item-id={item.id} />
+        {item.status === 'listed' && (
+          <AddToCart kind="item" refId={item.id} price={item.price} tiers={item.tiers} available={item.quantity} own={own} />
+        )}
 
-        {own && (
+        {canEdit && (
           <p>
             <a class="btn btn-ghost" href={`/sell/item?id=${item.id}`}>
               Edit this item

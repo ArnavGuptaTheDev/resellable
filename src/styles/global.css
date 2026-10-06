@@ -9,6 +9,15 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Keep focused / scrolled-to elements clear of the sticky header and the phone tab bar. */
+  scroll-padding-top: calc(var(--header-height) + 8px);
+  scroll-padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 16px);
+}
+
+@media (min-width: 768px) {
+  html {
+    scroll-padding-bottom: 16px;
+  }
 }
 
 body {
@@ -119,7 +128,7 @@ kbd,
   width: 100%;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 0 var(--gutter);
+  padding-inline: var(--gutter);
 }
 
 main {
