@@ -2,7 +2,7 @@
 
 Invite-only PWA for listing things to sell, building carts and negotiating one price per cart. Runs entirely on Cloudflare's free tier: Astro (static) for the UI, one Hono Worker for `/api/*`, `/auth/*` and `/img/*`, D1 for data and R2 for images.
 
-> This README grows with each milestone. The full version (OAuth setup, D1/R2 creation, secrets, config reference) lands in milestone 6.
+> This README grows with each milestone. R2 setup and the full config reference land in later milestones.
 
 ## Requirements
 
@@ -13,15 +13,24 @@ Invite-only PWA for listing things to sell, building carts and negotiating one p
 
 ```sh
 npm install
+cp .dev.vars.example .dev.vars   # then edit: set SUPERUSER_EMAILS to your email
+npm run db:migrate               # create the local D1 tables
 npm run dev
 ```
 
-This runs two processes:
+`npm run dev` runs two processes:
 
 - `astro dev` on http://localhost:4321, which serves the UI with hot reload and proxies `/api`, `/auth` and `/img` to the Worker
 - `wrangler dev` on http://localhost:8787, which runs the Worker locally (D1 and R2 are simulated in `.wrangler/`)
 
 Open http://localhost:4321.
+
+### Signing in locally
+
+You have two options:
+
+- **Without Google (quickest):** `.dev.vars.example` sets `DEV_LOGIN=true`, which turns on a local-only shortcut. Open http://localhost:4321/auth/dev-login?email=you@example.com, using an email from `SUPERUSER_EMAILS` or one you've invited. The normal allowlist, superuser and disabled checks still apply. The route only answers on `localhost`, and only when `DEV_LOGIN=true`, so never set that in production.
+- **With Google:** put your real client ID and secret in `.dev.vars`, and add `http://localhost:4321/auth/callback` as a redirect URI on the OAuth client (see [Google OAuth](#google-oauth)).
 
 To run the production build exactly as it will be deployed (static assets plus the Worker together):
 
@@ -29,17 +38,67 @@ To run the production build exactly as it will be deployed (static assets plus t
 npm run preview      # astro build && wrangler dev → http://localhost:8787
 ```
 
+For Google sign-in under `preview`, comment out `APP_ORIGIN` in `.dev.vars` so the redirect goes to :8787, and add `http://localhost:8787/auth/callback` to the OAuth client.
+
 ## Checks
 
 ```sh
 npm run check        # astro check + Worker typecheck
-npm test             # unit tests (from milestone 5)
+npm test             # unit tests
+npm run scan:secrets # run before every commit
 ```
+
+## First-time Cloudflare setup
+
+Do this once, before the first deploy.
+
+1. **Create the D1 database:**
+
+   ```sh
+   npx wrangler d1 create resellable
+   ```
+
+   Copy the `database_id` it prints into `wrangler.jsonc`, replacing `REPLACE_WITH_D1_DATABASE_ID`. The ID is not a secret, and committing it is fine.
+
+2. **Create the Google OAuth client** (see [Google OAuth](#google-oauth)). Put its client ID in `wrangler.jsonc` under `vars.GOOGLE_CLIENT_ID`.
+3. **Set the secrets** (see [Secrets](#secrets)).
+4. **Deploy:** run `npm run deploy` from your machine, or push to `main` once Workers Builds is connected.
+
+## Google OAuth
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project (or pick an existing one).
+2. Go to **APIs & Services → OAuth consent screen**:
+   - Choose **External** user type.
+   - Fill in the app name and support email.
+   - Add the scopes `openid`, `email` and `profile`.
+
+   While the app is in *Testing*, only the test users you list can sign in. Either add each invitee there, or publish the app. These three scopes don't need Google's verification review.
+3. Go to **APIs & Services → Credentials → Create credentials → OAuth client ID**:
+   - Application type: **Web application**.
+   - **Authorized redirect URIs**: add one for each place you run the app:
+     - `https://resellable.<your-subdomain>.workers.dev/auth/callback`
+     - `https://<your custom domain>/auth/callback` (if you use one)
+     - `http://localhost:4321/auth/callback` (for `npm run dev`)
+4. Copy the **Client ID** into `wrangler.jsonc` → `vars.GOOGLE_CLIENT_ID`, and into `.dev.vars` for local dev.
+5. Store the **Client secret** only as a secret: run `npx wrangler secret put GOOGLE_CLIENT_SECRET` for production, and put it in `.dev.vars` for local dev.
+
+How sign-in works:
+
+- **Code flow:** it's the authorization code flow with PKCE. The PKCE verifier and `state` are kept in a signed, HttpOnly cookie that lasts 10 minutes.
+- **Token checks:** the Worker exchanges the code for an ID token and checks `iss`, `aud`, `exp` and `email_verified`.
+- **Session:** it creates a session only for emails in `SUPERUSER_EMAILS` or on the allowlist. The session cookie is `__Host-session` (HttpOnly, Secure, SameSite=Lax, 30 days, extended while in use), and D1 stores only a SHA-256 hash of its token.
+
+## Access control
+
+- **Superusers** are exactly the emails in the `SUPERUSER_EMAILS` secret. They can't be disabled from the app. To remove one, change the secret.
+- **Sellers and buyers** are invited on the **Admin** screen (`/admin`), and their role can be changed there. Sellers can also buy.
+- **Every request re-checks access.** That covers session expiry, the disabled flag, and current allowlist or `SUPERUSER_EMAILS` membership. So disabling a user, or removing them from the allowlist, ends their access on their next request.
+- **CSRF:** every mutating API call must come from the app's own origin and carry the per-session `X-CSRF-Token` header.
 
 ## Deploy
 
 ```sh
-npm run deploy       # astro build && wrangler deploy
+npm run deploy       # astro build, apply D1 migrations (--remote), wrangler deploy
 ```
 
 The first deploy creates the `resellable` Worker and prints its `*.workers.dev` URL. Later deploys update it in place.
@@ -67,13 +126,13 @@ Every push to `main` triggers a build and deploy on Cloudflare through **Workers
 
 1. Cloudflare clones the repo and runs `npm ci`.
 2. It runs `npm run build`, which runs `astro build` and writes `dist/`.
-3. It runs `npm run deploy:ci`, which runs `wrangler deploy`. That uploads the Worker and `dist/` as static assets.
+3. It runs `npm run deploy:ci`. That applies any new D1 migrations to the production database (`wrangler d1 migrations apply DB --remote`), then runs `wrangler deploy`, which uploads the Worker and `dist/` as static assets. If a migration fails, nothing is deployed.
 
 Build logs appear under the Worker's **Deployments** tab.
 
 **Runtime secrets are not part of the build.** You set them once on the Worker (see [Secrets](#secrets)), and they persist across deploys. Do not put secrets in the dashboard's *build* variables either: those are only for the build step and are not readable at runtime.
 
-> **Milestone 2 note:** `deploy:ci` will also apply D1 migrations (`wrangler d1 migrations apply --remote`). The API token that Workers Builds creates automatically does **not** have D1 permissions. In the build settings, switch to a custom API token that has the default permissions plus **D1: Edit**.
+> **D1 permission needed:** `deploy:ci` runs `wrangler d1 migrations apply DB --remote` before `wrangler deploy`. The API token that Workers Builds creates automatically does **not** have D1 permissions. Under the Worker's **Settings → Builds → API token**, use a custom token with the default build permissions plus **Account → D1 → Edit**.
 
 ## Secrets
 
@@ -127,8 +186,13 @@ It exits non-zero if it finds anything.
 | `src/styles/tokens.css` | **Theme tokens**: colors for light and dark, fonts, spacing. Edit colors here. |
 | `src/styles/global.css` | Base styles and shared components (`.panel`, `.btn`, `.tag`, …) |
 | `public/_headers` | Security headers and cache rules for static assets |
-| `worker/` | The Hono Worker (API, auth, images) |
-| `wrangler.jsonc` | Worker config: static assets, bindings |
+| `src/lib/` | Client helpers: `api.ts` (fetch with CSRF), `session.ts` (`/api/me`) |
+| `worker/` | The Hono Worker: `routes/` (auth, me, admin), `lib/` (session, crypto, access), `middleware.ts` (auth, CSRF, roles) |
+| `shared/` | TypeScript shared by the UI and the Worker (roles; pricing and deal rules later) |
+| `migrations/` | D1 schema migrations, applied in order |
+| `test/` | Vitest unit tests |
+| `scripts/secret-scan.mjs` | Pre-commit secret scan |
+| `wrangler.jsonc` | Worker config: static assets, D1 binding, plain vars |
 
 ## Theme and fonts
 

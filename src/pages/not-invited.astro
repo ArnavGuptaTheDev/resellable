@@ -1,0 +1,48 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Access denied" public>
+  <section class="gate">
+    <div class="panel">
+      <p class="eyebrow">// access denied</p>
+      <h1 class="glow-text">Not invited</h1>
+      <p class="reason">This Google account isn't on the invite list.</p>
+      <p class="muted">
+        If you were invited, sign in with the exact Google account the invite went to. Otherwise, ask the person who
+        runs this Resellable to add your email.
+      </p>
+      <a class="btn btn-ghost" href="/login">Try another account</a>
+    </div>
+  </section>
+</Shell>
+
+<script>
+  const reasons: Record<string, string> = {
+    not_invited: "This Google account isn't on the invite list.",
+    disabled: 'This account has been disabled by an administrator.',
+    unverified: "Google hasn't verified this account's email address, so it can't be used here.",
+    error: 'Sign-in failed while talking to Google. Please try again.',
+  };
+  const reason = new URLSearchParams(location.search).get('reason') ?? 'not_invited';
+  const el = document.querySelector('.reason');
+  if (el) el.textContent = reasons[reason] ?? reasons.not_invited!;
+</script>
+
+<style>
+  .gate {
+    display: grid;
+    place-items: center;
+    min-height: calc(100dvh - var(--header-height) - 120px);
+  }
+
+  .gate .panel {
+    width: 100%;
+    max-width: 460px;
+    padding: 28px var(--gutter);
+  }
+
+  .reason {
+    color: var(--danger);
+    font-weight: 500;
+  }
+</style>

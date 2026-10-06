@@ -11,5 +11,22 @@
     // Only these paths hit the Worker; everything else is served straight from assets.
     "run_worker_first": ["/api/*", "/auth/*", "/img/*"]
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "resellable",
+      // Create once with `npx wrangler d1 create resellable` and paste the id here.
+      // Not a secret: it is useless without an API token for your account.
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Plain, non-secret config. Secrets (GOOGLE_CLIENT_SECRET, SESSION_SECRET,
+  // SUPERUSER_EMAILS) are set with `wrangler secret put` and never live here.
+  "vars": {
+    // Public OAuth client id (it appears in the Google sign-in URL anyway).
+    "GOOGLE_CLIENT_ID": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+    "CURRENCY": "INR"
+  },
   "observability": { "enabled": true }
 }

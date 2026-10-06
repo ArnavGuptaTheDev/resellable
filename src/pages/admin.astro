@@ -1,0 +1,103 @@
+---
+import Shell from '../layouts/Shell.astro';
+import AdminPanel from '../components/admin/AdminPanel.tsx';
+---
+<Shell title="Admin" nav="admin">
+  <p class="eyebrow">// root access</p>
+  <h1 class="glow-text">Admin</h1>
+  <p class="muted">Invite people, set what they can do, and switch accounts off.</p>
+  <AdminPanel client:load />
+</Shell>
+
+<style is:global>
+  .admin {
+    display: grid;
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  @media (min-width: 900px) {
+    .admin {
+      grid-template-columns: 360px 1fr;
+      align-items: start;
+    }
+    .admin > .invite {
+      grid-row: span 2;
+      position: sticky;
+      top: calc(var(--header-height) + 16px);
+    }
+    .admin > :not(.invite) {
+      grid-column: 2;
+    }
+  }
+
+  .admin .small {
+    font-size: 0.85rem;
+  }
+
+  .admin .block {
+    display: block;
+    text-transform: none;
+    letter-spacing: 0;
+    font-family: var(--font-text);
+    padding: 6px 10px;
+    margin-top: 12px;
+  }
+
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .row .who {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .row .email,
+  .row .who strong {
+    overflow-wrap: anywhere;
+  }
+
+  .row .badges {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .row .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .row select {
+    width: auto;
+  }
+
+  .chips {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+  }
+
+  .chips .tag {
+    text-transform: none;
+    letter-spacing: 0;
+  }
+</style>

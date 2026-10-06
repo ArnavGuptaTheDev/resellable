@@ -13,19 +13,22 @@ interface Props {
   title: string;
   /** Which nav entry to highlight. */
   nav?: 'browse' | 'sell' | 'deals' | 'admin';
+  /** Signed-in pages (the default) redirect to /login when there is no session. */
+  public?: boolean;
 }
 
-const { title, nav } = Astro.props;
+const { title, nav, public: isPublic = false } = Astro.props;
 
+// `needs` only hides links the role can't use; the API enforces roles.
 const links = [
-  { id: 'browse', href: '/', label: 'Browse', icon: 'M4 6h16M4 12h16M4 18h10' },
-  { id: 'sell', href: '/sell', label: 'Sell', icon: 'M12 5v14M5 12h14' },
-  { id: 'deals', href: '/deals', label: 'Deals', icon: 'M4 5h16v11H8l-4 4V5Z' },
-  { id: 'admin', href: '/admin', label: 'Admin', icon: 'M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7l8-4Z' },
+  { id: 'browse', href: '/', label: 'Browse', needs: undefined, icon: 'M4 6h16M4 12h16M4 18h10' },
+  { id: 'sell', href: '/sell', label: 'Sell', needs: 'seller', icon: 'M12 5v14M5 12h14' },
+  { id: 'deals', href: '/deals', label: 'Deals', needs: undefined, icon: 'M4 5h16v11H8l-4 4V5Z' },
+  { id: 'admin', href: '/admin', label: 'Admin', needs: 'superuser', icon: 'M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7l8-4Z' },
 ] as const;
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" class={isPublic ? undefined : 'auth-pending'}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -52,35 +55,147 @@ const links = [
           <span class="brand-mark" aria-hidden="true">R/</span>
           <span class="brand-name">Resellable</span>
         </a>
-        <nav class="top-nav" aria-label="Primary">
-          {links.map((l) => (
-            <a href={l.href} aria-current={nav === l.id ? 'page' : undefined}>{l.label}</a>
-          ))}
-        </nav>
+        {!isPublic && (
+          <nav class="top-nav" aria-label="Primary">
+            {links.map((l) => (
+              <a href={l.href} data-needs={l.needs} aria-current={nav === l.id ? 'page' : undefined}>{l.label}</a>
+            ))}
+          </nav>
+        )}
         <div class="header-actions">
           <ThemeToggle />
+          {!isPublic && (
+            <div class="user-chip" hidden>
+              <span class="avatar" aria-hidden="true"></span>
+              <button type="button" class="icon-btn sign-out" aria-label="Sign out" title="Sign out">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
 
     <main id="main" class="container">
+      {!isPublic && (
+        <noscript><p class="panel">Resellable needs JavaScript to load your data.</p></noscript>
+      )}
       <slot />
     </main>
 
-    <nav class="tabbar" aria-label="Primary">
-      {links.map((l) => (
-        <a href={l.href} aria-current={nav === l.id ? 'page' : undefined}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d={l.icon} />
-          </svg>
-          <span>{l.label}</span>
-        </a>
-      ))}
-    </nav>
+    {!isPublic && (
+      <nav class="tabbar" aria-label="Primary">
+        {links.map((l) => (
+          <a href={l.href} data-needs={l.needs} aria-current={nav === l.id ? 'page' : undefined}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d={l.icon} />
+            </svg>
+            <span>{l.label}</span>
+          </a>
+        ))}
+      </nav>
+    )}
+
+    <script>
+      import { getSession, loginUrl } from '../lib/session';
+      import { api } from '../lib/api';
+
+      const root = document.documentElement;
+      // Only signed-in pages render with .auth-pending; public pages skip this.
+      async function boot() {
+        if (!root.classList.contains('auth-pending')) return;
+        try {
+          const session = await getSession();
+          if (!session) {
+            location.replace(loginUrl());
+            return;
+          }
+          const { user } = session;
+          root.dataset.role = user.role;
+
+          const chip = document.querySelector<HTMLElement>('.user-chip');
+          const avatar = chip?.querySelector<HTMLElement>('.avatar');
+          if (chip && avatar) {
+            const label = user.name || user.email;
+            avatar.title = `${label} · ${user.role}`;
+            if (user.avatarUrl) {
+              const img = document.createElement('img');
+              img.src = user.avatarUrl;
+              img.alt = '';
+              img.referrerPolicy = 'no-referrer';
+              avatar.append(img);
+            } else {
+              avatar.textContent = label.slice(0, 1).toUpperCase();
+            }
+            chip.hidden = false;
+          }
+
+          document.querySelector('.sign-out')?.addEventListener('click', async () => {
+            try {
+              await api('/auth/logout', { method: 'POST' });
+            } finally {
+              location.replace('/login');
+            }
+          });
+
+          root.classList.remove('auth-pending');
+        } catch (err) {
+          console.error(err);
+          root.classList.remove('auth-pending');
+          root.classList.add('auth-error');
+        }
+      }
+      void boot();
+    </script>
   </body>
 </html>
 
+<style is:global>
+  /* Hide signed-in content until /api/me confirms the session. */
+  html.auth-pending main {
+    visibility: hidden;
+  }
+
+  /* Role-gated nav (cosmetic; the API enforces roles). */
+  html:not([data-role='seller']):not([data-role='superuser']) [data-needs='seller'],
+  html:not([data-role='superuser']) [data-needs='superuser'] {
+    display: none !important;
+  }
+</style>
+
 <style>
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .user-chip[hidden] {
+    display: none;
+  }
+
+  .avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    overflow: hidden;
+    border: 1px solid var(--accent-2);
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--accent-2);
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+
+  .avatar :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   .skip:focus {
     position: fixed !important;
     top: 8px;
@@ -182,7 +297,8 @@ const links = [
     bottom: 0;
     z-index: 50;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
     background: var(--surface);

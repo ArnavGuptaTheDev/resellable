@@ -2,12 +2,12 @@
 import Shell from '../layouts/Shell.astro';
 import SystemStatus from '../components/SystemStatus.tsx';
 ---
-<Shell title="Hello" nav="browse">
+<Shell title="Browse" nav="browse">
   <section class="hero">
-    <p class="eyebrow">// node 01 · boot sequence</p>
-    <h1 class="glow-text">Hello, Resellable</h1>
+    <p class="eyebrow">// node 01 · browse</p>
+    <h1 class="glow-text">Hello, <span class="who">operator</span></h1>
     <p class="lede muted">
-      Invite-only marketplace for the parts bin. List it fast, cart it up, haggle one price for the lot.
+      You're signed in as <span class="tag role">…</span>. Browsing and search arrive in milestone 4.
     </p>
   </section>
 
@@ -15,34 +15,19 @@ import SystemStatus from '../components/SystemStatus.tsx';
     <h2>System status</h2>
     <SystemStatus client:load />
   </section>
-
-  <section class="specimen" aria-label="Theme specimen">
-    <div class="panel">
-      <p class="eyebrow">Sample listing</p>
-      <h3>ESP32-WROOM-32 dev board</h3>
-      <p class="muted">Used · tested · USB-C</p>
-      <p class="price">
-        <span class="num">₹350</span>
-        <span class="muted">· 5+ for <span class="num">₹300</span> each</span>
-      </p>
-      <p>
-        <span class="tag tag-accent">Listed</span>
-        <span class="tag">qty <span class="num">24</span></span>
-      </p>
-      <div class="actions">
-        <a class="btn" href="#">Add to cart</a>
-        <a class="btn btn-ghost" href="#">Make an offer</a>
-      </div>
-    </div>
-    <div class="panel">
-      <p class="eyebrow">Type</p>
-      <p class="display">Chakra Petch / display</p>
-      <p>IBM Plex Sans / body text for descriptions, chat and forms.</p>
-      <p class="num">IBM Plex Mono / ₹1,234.00 × 12</p>
-      <p class="muted">Use the theme button in the header to switch between system, light and dark.</p>
-    </div>
-  </section>
 </Shell>
+
+<script>
+  import { getSession } from '../lib/session';
+
+  void getSession().then((s) => {
+    if (!s) return;
+    const who = document.querySelector('.who');
+    const role = document.querySelector('.role');
+    if (who) who.textContent = (s.user.name || s.user.email).split(' ')[0]!;
+    if (role) role.textContent = s.user.role;
+  });
+</script>
 
 <style>
   .hero {
@@ -52,43 +37,6 @@ import SystemStatus from '../components/SystemStatus.tsx';
   .lede {
     max-width: 52ch;
     font-size: 1.05rem;
-  }
-
-  .specimen {
-    display: grid;
-    gap: 16px;
-    margin-top: 16px;
-  }
-
-  @media (min-width: 768px) {
-    .specimen {
-      grid-template-columns: 1fr 1fr;
-    }
-  }
-
-  .price {
-    font-size: 1.25rem;
-  }
-
-  .price .muted {
-    font-size: 0.9rem;
-  }
-
-  .tag + .tag {
-    margin-left: 6px;
-  }
-
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .display {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 1.4rem;
-    text-transform: uppercase;
   }
 
   :global(.status) {
