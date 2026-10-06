@@ -40,7 +40,34 @@ export default function BatchPhotos() {
 
   useEffect(() => {
     void loadDrafts();
+    if (new URLSearchParams(location.search).has('shared')) void takeShared();
   }, []);
+
+  /** Photos shared from the phone's gallery (Web Share Target): the service worker parks them in a cache. */
+  async function takeShared() {
+    history.replaceState(null, '', location.pathname + location.hash);
+    if (!('caches' in window)) return;
+    try {
+      const inbox = await caches.open('share-inbox');
+      const keys = await inbox.keys();
+      const files: File[] = [];
+      for (const key of keys) {
+        const res = await inbox.match(key);
+        if (res) {
+          const blob = await res.blob();
+          const name = decodeURIComponent(res.headers.get('X-Filename') ?? 'shared.jpg');
+          files.push(new File([blob], name, { type: blob.type }));
+        }
+        await inbox.delete(key);
+      }
+      if (files.length) {
+        toast.push({ kind: 'ok', text: `Received ${files.length} shared photo${files.length > 1 ? 's' : ''}.` });
+        void run(files);
+      }
+    } catch {
+      toast.push({ kind: 'error', text: 'Could not read the shared photos. Pick them here instead.' });
+    }
+  }
 
   async function run(files: File[]) {
     const batch = files.slice(0, MAX_BATCH).map((f, i) => ({ file: f, key: `${Date.now()}-${i}` }));

@@ -1,0 +1,11 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Offline" public>
+  <section class="panel">
+    <p class="eyebrow">// no signal</p>
+    <h1 class="glow-text">You're offline</h1>
+    <p class="muted">Resellable needs a connection to load listings and deals. Reconnect and try again.</p>
+    <button class="btn" type="button" onclick="location.reload()">Retry</button>
+  </section>
+</Shell>

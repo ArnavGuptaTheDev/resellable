@@ -38,6 +38,11 @@ const links = [
     <meta name="robots" content="noindex, nofollow" />
     <title>{title} · Resellable</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Resellable" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script is:inline>
       // Apply the saved theme before first paint to avoid a flash.
       try {
@@ -176,6 +181,13 @@ const links = [
         }
       }
       void boot();
+
+      // App shell + static assets only; /api, /auth and /img are never cached (see scripts/sw.template.js).
+      if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+        addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => console.warn('service worker', err));
+        });
+      }
     </script>
   </body>
 </html>
@@ -326,6 +338,16 @@ const links = [
 
   .brand-name {
     text-shadow: var(--text-glow);
+  }
+
+  /* Small phones: the mark alone, so the header actions fit. */
+  @media (max-width: 400px) {
+    .brand-name {
+      display: none;
+    }
+    .header-actions {
+      gap: 6px;
+    }
   }
 
   .top-nav {

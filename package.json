@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n web,api -c cyan,magenta \"astro dev\" \"wrangler dev --port 8787\"",
-    "build": "astro build",
-    "preview": "astro build && wrangler dev",
-    "deploy": "astro build && npm run deploy:ci",
+    "build": "astro build && node scripts/build-sw.mjs",
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && npm run deploy:ci",
     "deploy:ci": "wrangler d1 migrations apply DB --remote && wrangler deploy",
     "db:migrate": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",

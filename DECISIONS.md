@@ -51,3 +51,14 @@ Choices made where the spec left room. Each one has a line of reasoning, so it's
 - **The seller's "how to pay" note is edited under Deals → Selling.** It's shown to the buyer from agreement on.
 - **Photos of items in your deals stay visible to both parties** even after the item is hidden or sold out.
 - **Timeline ties within the same millisecond sort as offer, then message, then event**, so an offer appears before the status change it caused.
+
+## PWA and polish (milestone 6)
+
+- **The service worker is generated at build time** (`scripts/build-sw.mjs`). The precache list and cache version come from the actual `dist/` files, so every deploy replaces the old cache and nothing is listed by hand.
+- **Pages are fetched network-first, with the cached shell as fallback.** After a deploy, users get the new UI on a normal reload; offline, they still get the shell and then an offline page.
+- **`/api/*`, `/auth/*` and `/img/*` are never touched by the service worker.** The spec requires it, and it keeps user data out of the browser cache.
+- **The Web Share Target is included.** It took about 30 lines: the service worker parks the shared files in a small cache and redirects to Batch add, which consumes and deletes them. It didn't complicate the shell caching, so the spec's "skip if it complicates" didn't apply.
+- **The service worker registers only in production builds.** It would otherwise cache `astro dev`'s modules and confuse hot reload.
+- **App icons are rendered from the brand mark with Chakra Petch and committed as PNGs,** including a maskable version with a safe-zone margin for Android.
+- **Below 400 px wide, the header shows only the R/ mark.** That leaves room for the cart, theme and sign-out buttons on small phones.
+- **There's no custom "Install" button.** Chrome and Android offer installation natively once the manifest and service worker are present, and an extra button would just be noise.
