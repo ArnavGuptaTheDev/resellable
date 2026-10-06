@@ -1,4 +1,5 @@
 import { LIMITS } from './config';
+import type { Tier } from './pricing';
 
 export const CONDITIONS = ['new', 'used', 'for_parts'] as const;
 export type Condition = (typeof CONDITIONS)[number];
@@ -34,10 +35,12 @@ export interface Item {
   createdAt: number;
   updatedAt: number;
   photos: Photo[];
+  /** Quantity price tiers (min quantity → unit price). Only on priced items. */
+  tiers: Tier[];
 }
 
 /** Row in the inventory list (no full photo list). */
-export interface InventoryItem extends Omit<Item, 'photos' | 'description'> {
+export interface InventoryItem extends Omit<Item, 'photos' | 'description' | 'tiers'> {
   coverThumbUrl: string | null;
   photoCount: number;
 }

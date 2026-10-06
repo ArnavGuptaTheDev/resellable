@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { ITEM_STATUSES, STATUS_LABELS, type Condition, type Item, type ItemStatus } from '../../../shared/items';
-import { parseMoney, toMajorString } from '../../../shared/money';
+import { formatMoney, parseMoney, toMajorString } from '../../../shared/money';
 import { ApiError, api, errorMessage } from '../../lib/api';
 import { photoForm } from '../../lib/images';
 import {
@@ -228,8 +228,9 @@ export default function ItemEditor() {
             ))}
           </select>
         </Field>
-        <p class="muted small">Price tiers (e.g. 5+ for a lower price) and bundles arrive in milestone 4.</p>
       </section>
+
+      <TiersEditor item={item} onSaved={(it) => setItem((cur) => cur && { ...cur, tiers: it.tiers, updatedAt: it.updatedAt })} onToast={toast.push} />
 
       <div class="action-bar">
         {busy ? (
@@ -250,5 +251,79 @@ export default function ItemEditor() {
       </div>
       {toast.view}
     </form>
+  );
+}
+
+/** Quantity tiers: "5+ for ₹300 each". Only for items that have a price (server enforces it too). */
+function TiersEditor({ item, onSaved, onToast }: { item: Item; onSaved: (i: Item) => void; onToast: ReturnType<typeof useToasts>['push'] }) {
+  const toRows = (i: Item) => i.tiers.map((t) => ({ minQty: String(t.minQty), price: toMajorString(t.unitPrice) }));
+  const [rows, setRows] = useState(() => toRows(item));
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const dirty = JSON.stringify(rows) !== JSON.stringify(toRows(item));
+
+  if (item.price == null) {
+    return (
+      <section class="panel">
+        <h2 class="section-title">Quantity pricing</h2>
+        <p class="muted small">Set and save a price for this item to add tiers like “5+ for a lower price each”.</p>
+      </section>
+    );
+  }
+
+  async function save() {
+    const tiers = rows.map((r) => ({ minQty: parseInt(r.minQty, 10), unitPrice: parseMoney(r.price) }));
+    if (tiers.some((t) => Number.isNaN(t.minQty) || t.unitPrice == null || Number.isNaN(t.unitPrice))) {
+      return setError('Fill in a quantity and a price for every tier, or remove it.');
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<{ item: Item }>(`/api/items/${item.id}/tiers`, {
+        method: 'PUT',
+        body: { tiers: tiers.sort((a, b) => a.minQty - b.minQty) },
+      });
+      onSaved(res.item);
+      setRows(toRows(res.item));
+      onToast({ kind: 'ok', text: 'Quantity pricing saved.' });
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section class="panel">
+      <h2 class="section-title">Quantity pricing</h2>
+      <p class="muted small">
+        1 or more: <span class="num">{formatMoney(item.price)}</span> each. Add tiers for bulk buyers.
+      </p>
+      <ul class="tier-rows">
+        {rows.map((r, i) => (
+          <li key={i}>
+            <label>
+              <span class="visually-hidden">Minimum quantity</span>
+              <input type="number" inputMode="numeric" min={2} class="num" placeholder="5" value={r.minQty} onInput={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, minQty: e.currentTarget.value } : x)))} />
+            </label>
+            <span class="muted">+ for</span>
+            <MoneyInput compact value={r.price} placeholder="300" onInput={(v) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, price: v } : x)))} />
+            <span class="muted">each</span>
+            <button type="button" class="icon-btn" aria-label="Remove tier" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      {error && <p class="field-error">{error}</p>}
+      <div class="tier-actions">
+        <button type="button" class="btn btn-ghost" disabled={rows.length >= 10} onClick={() => setRows((rs) => [...rs, { minQty: '', price: '' }])}>
+          + Add tier
+        </button>
+        <button type="button" class="btn" disabled={busy || !dirty} onClick={() => void save()}>
+          Save tiers
+        </button>
+      </div>
+    </section>
   );
 }

@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import admin from './routes/admin';
 import auth from './routes/auth';
+import bundles from './routes/bundles';
+import catalog from './routes/catalog';
 import images from './routes/images';
 import items from './routes/items';
 import me from './routes/me';
@@ -24,6 +26,8 @@ app.route('/auth', auth);
 app.route('/api/me', me);
 app.route('/api/admin', admin);
 app.route('/api/items', items);
+app.route('/api/bundles', bundles);
+app.route('/api/catalog', catalog);
 app.route('/img', images);
 
 // Anything under the Worker-first prefixes that no route claimed.

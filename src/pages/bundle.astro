@@ -1,0 +1,9 @@
+---
+import Shell from '../layouts/Shell.astro';
+import BundlePage from '../components/shop/BundlePage.tsx';
+import '../styles/shop.css';
+---
+<Shell title="Bundle" nav="browse">
+  <p class="eyebrow back"><a href="/?kind=bundles">← bundles</a></p>
+  <BundlePage client:only="preact" />
+</Shell>

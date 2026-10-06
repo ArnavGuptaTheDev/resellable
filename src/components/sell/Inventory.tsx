@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { CONDITION_LABELS, ITEM_STATUSES, STATUS_LABELS, type InventoryItem, type ItemStatus } from '../../../shared/items';
 import { formatMoney, parseMoney, toMajorString } from '../../../shared/money';
+import type { BundleView } from '../../../shared/catalog';
 import { api, errorMessage } from '../../lib/api';
 import { MoneyInput, useCategories, useToasts } from './fields';
 
@@ -21,6 +22,9 @@ export default function Inventory() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [catPrompt, setCatPrompt] = useState<string | null>(null);
+  /** "Add to bundle" chooser: null = closed. */
+  const [bundlePick, setBundlePick] = useState<BundleView[] | null>(null);
+  const [bundleId, setBundleId] = useState<number | null>(null);
   const categories = useCategories();
   const toast = useToasts();
   const reqId = useRef(0);
@@ -74,6 +78,34 @@ export default function Inventory() {
     }
   }
 
+  async function openBundlePick() {
+    try {
+      const { bundles } = await api<{ bundles: BundleView[] }>('/api/bundles/mine');
+      setBundlePick(bundles);
+      setBundleId(bundles[0]?.id ?? null);
+    } catch (err) {
+      toast.push({ kind: 'error', text: errorMessage(err) });
+    }
+  }
+
+  async function addToBundle() {
+    if (!bundleId) return;
+    setBulkBusy(true);
+    try {
+      const { bundle } = await api<{ bundle: BundleView }>(`/api/bundles/${bundleId}/items`, {
+        method: 'POST',
+        body: { items: [...selected].map((itemId) => ({ itemId, quantity: 1 })) },
+      });
+      toast.push({ kind: 'ok', text: `Added ${selected.size} item(s) to "${bundle.title}".`, href: `/sell/bundle?id=${bundle.id}`, linkText: 'Edit' });
+      setBundlePick(null);
+      setSelected(new Set());
+    } catch (err) {
+      toast.push({ kind: 'error', text: errorMessage(err) });
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   const items = data?.items ?? [];
   const allSelected = items.length > 0 && items.every((i) => selected.has(i.id));
   const toggle = (id: number) =>
@@ -89,6 +121,7 @@ export default function Inventory() {
       <div class="toolbar">
         <a class="btn" href="/sell/add">+ Quick add</a>
         <a class="btn btn-ghost" href="/sell/batch">Batch add</a>
+        <a class="btn btn-ghost" href="/sell/bundles">Bundles</a>
         <a class="btn btn-ghost" href="/api/items/export.csv" download>
           Export CSV
         </a>
@@ -166,7 +199,33 @@ export default function Inventory() {
       {selected.size > 0 && (
         <div class="bulk-bar" role="region" aria-label="Bulk actions">
           <span class="num">{selected.size} selected</span>
-          {catPrompt === null ? (
+          {bundlePick !== null ? (
+            <form
+              class="actions"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void addToBundle();
+              }}
+            >
+              {bundlePick.length ? (
+                <select aria-label="Bundle" value={bundleId ?? ''} onChange={(e) => setBundleId(Number(e.currentTarget.value))}>
+                  {bundlePick.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.title}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span class="muted small">No bundles yet.</span>
+              )}
+              <button type="submit" class="btn" disabled={bulkBusy || !bundleId}>
+                Add
+              </button>
+              <button type="button" class="btn btn-ghost" onClick={() => setBundlePick(null)}>
+                Cancel
+              </button>
+            </form>
+          ) : catPrompt === null ? (
             <div class="actions">
               <button type="button" class="btn" disabled={bulkBusy} onClick={() => void bulk('list')}>
                 List
@@ -179,6 +238,12 @@ export default function Inventory() {
               </button>
               <button type="button" class="btn btn-ghost" disabled={bulkBusy} onClick={() => setCatPrompt('')}>
                 Set category
+              </button>
+              <a class="btn btn-ghost" href={`/sell/bundle?items=${[...selected].join(',')}`}>
+                Create bundle
+              </a>
+              <button type="button" class="btn btn-ghost" disabled={bulkBusy} onClick={() => void openBundlePick()}>
+                Add to bundle
               </button>
               <button type="button" class="btn btn-ghost" onClick={() => setSelected(new Set())}>
                 Clear

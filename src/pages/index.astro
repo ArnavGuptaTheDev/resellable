@@ -1,48 +1,9 @@
 ---
 import Shell from '../layouts/Shell.astro';
-import SystemStatus from '../components/SystemStatus.tsx';
+import Browse from '../components/shop/Browse.tsx';
+import '../styles/shop.css';
 ---
 <Shell title="Browse" nav="browse">
-  <section class="hero">
-    <p class="eyebrow">// node 01 · browse</p>
-    <h1 class="glow-text">Hello, <span class="who">operator</span></h1>
-    <p class="lede muted">
-      You're signed in as <span class="tag role">…</span>. Browsing and search arrive in milestone 4.
-    </p>
-  </section>
-
-  <section class="panel">
-    <h2>System status</h2>
-    <SystemStatus client:load />
-  </section>
+  <h1 class="visually-hidden">Browse</h1>
+  <Browse client:only="preact" />
 </Shell>
-
-<script>
-  import { getSession } from '../lib/session';
-
-  void getSession().then((s) => {
-    if (!s) return;
-    const who = document.querySelector('.who');
-    const role = document.querySelector('.role');
-    if (who) who.textContent = (s.user.name || s.user.email).split(' ')[0]!;
-    if (role) role.textContent = s.user.role;
-  });
-</script>
-
-<style>
-  .hero {
-    margin: 8px 0 24px;
-  }
-
-  .lede {
-    max-width: 52ch;
-    font-size: 1.05rem;
-  }
-
-  :global(.status) {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-  }
-</style>

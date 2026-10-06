@@ -9,8 +9,8 @@ const KEY_RE = /^photos\/[0-9a-f-]{36}(-t)?\.(webp|jpg)$/;
 
 /**
  * Serves a photo from the private bucket to signed-in users.
- * Listed / sold-out items' photos are visible to everyone signed in; drafts
- * and hidden items only to their seller and superusers.
+ * Listed / sold-out items' photos (and listed bundles' covers) are visible to
+ * everyone signed in; drafts and hidden items only to their seller and superusers.
  * Keys are immutable, so responses are cacheable forever, but only privately.
  */
 images.get('/*', async (c) => {
@@ -21,7 +21,8 @@ images.get('/*', async (c) => {
   const visible = await c.env.DB.prepare(
     `SELECT 1 FROM item_photos p JOIN items i ON i.id = p.item_id
       WHERE (p.r2_key = ?1 OR p.thumb_key = ?1)
-        AND (i.status IN ('listed', 'sold_out') OR i.seller_id = ?2 OR ?3 = 1)
+        AND (i.status IN ('listed', 'sold_out') OR i.seller_id = ?2 OR ?3 = 1
+             OR EXISTS (SELECT 1 FROM bundles b WHERE b.cover_photo_id = p.id AND b.status = 'listed'))
       LIMIT 1`,
   )
     .bind(key, user.id, user.role === 'superuser' ? 1 : 0)

@@ -79,14 +79,23 @@ npm run db:seed
 
 This loads example items, price tiers and a "Build a Robot" bundle, owned by `seller@example.com`, plus an invited buyer, `buyer@example.com`. Sign in as either with `/auth/dev-login?email=…`. The seed only runs against the local database.
 
-## Selling (milestone 3)
+## Selling
 
 | Screen | What it does |
 | --- | --- |
 | `/sell` | Inventory: search, filter by status and category, edit quantity and price inline, bulk list / hide / move to draft / set category, CSV export |
 | `/sell/add` | Quick add: photos (camera or gallery), title, quantity, price, condition. **Save & add another** keeps category, tags and condition. |
 | `/sell/batch` | Batch from photos: each photo becomes a draft. Then fill in title → Enter → quantity → Enter → price → Enter, row by row. |
-| `/sell/item?id=…` | Full editor: photos (add, remove, make cover), all fields, status, duplicate |
+| `/sell/item?id=…` | Full editor: photos (add, remove, make cover), all fields, status, quantity price tiers, duplicate |
+| `/sell/bundles`, `/sell/bundle?id=…` | Bundles: create from selected inventory items (**Create bundle**), or add items to an existing one (**Add to bundle**). Priced as a fixed amount or a percent off the items' total. |
+
+## Buying
+
+| Screen | What it does |
+| --- | --- |
+| `/` | Browse and search (FTS5 over title, description and tags), with filters for category, condition, has price / make an offer, and bundles only |
+| `/item?id=…` | Photo gallery, price with quantity tiers, stock, seller, and bundles that contain the item |
+| `/bundle?id=…` | What's inside, the total bought separately, the saving, and how many bundles current stock can make |
 
 How photos are handled:
 

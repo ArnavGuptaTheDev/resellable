@@ -9,6 +9,8 @@ import {
   type ItemInput,
   type ItemStatus,
 } from '../../shared/items';
+import { validateTiers, type Tier } from '../../shared/pricing';
+import { loadTiers } from '../lib/catalog';
 import { checkImage, putPhoto } from '../lib/images';
 import {
   deleteOrphanedKeys,
@@ -261,11 +263,54 @@ items.post('/bulk', async (c) => {
 
 // ------------------------------------------------------------------ single item
 
+async function fullItem(c: Ctx, row: ItemRow) {
+  const [photos, tiers] = await Promise.all([getPhotos(c.env.DB, row.id), loadTiers(c.env.DB, [row.id])]);
+  return toItem(row, photos, tiers.get(row.id) ?? []);
+}
+
 items.get('/:id{[0-9]+}', async (c) => {
   const item = await loadOwned(c, Number(c.req.param('id')));
   if (!item) return apiError(c, 404, 'not_found');
-  return c.json({ item: toItem(item, await getPhotos(c.env.DB, item.id)) });
+  return c.json({ item: await fullItem(c, item) });
 });
+
+/** Replaces the item's quantity tiers. Body: { tiers: [{ minQty, unitPrice }] }. Only for priced items. */
+items.put('/:id{[0-9]+}/tiers', async (c) => {
+  const item = await loadOwned(c, Number(c.req.param('id')));
+  if (!item) return apiError(c, 404, 'not_found');
+  const body = await readJson<{ tiers?: unknown }>(c);
+  if (!body || !Array.isArray(body.tiers)) return apiError(c, 400, 'bad_request', 'Expected { tiers: [...] }.');
+  const tiers: Tier[] = (body.tiers as { minQty?: unknown; unitPrice?: unknown }[]).map((t) => ({
+    minQty: Number(t?.minQty),
+    unitPrice: Number(t?.unitPrice),
+  }));
+  const error = validateTiers(item.price, tiers);
+  if (error) return c.json({ error: 'invalid', message: error, fields: { tiers: error } }, 422);
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM item_price_tiers WHERE item_id = ?').bind(item.id),
+    ...tiers.map((t) => c.env.DB.prepare('INSERT INTO item_price_tiers (item_id, min_qty, unit_price) VALUES (?, ?, ?)').bind(item.id, t.minQty, t.unitPrice)),
+    c.env.DB.prepare('UPDATE items SET updated_at = ? WHERE id = ?').bind(Date.now(), item.id),
+  ]);
+  return c.json({ item: await fullItem(c, (await getItem(c.env.DB, item.id))!) });
+});
+
+/**
+ * Removing an item's price would break two rules: tiers need a base price,
+ * and percent-off bundles need every component priced. Returns the reason.
+ */
+async function priceRemovalBlocker(c: Ctx, itemId: number): Promise<string | null> {
+  const [tiers, bundle] = await c.env.DB.batch([
+    c.env.DB.prepare('SELECT count(*) AS n FROM item_price_tiers WHERE item_id = ?').bind(itemId),
+    c.env.DB.prepare(
+      `SELECT b.title FROM bundles b JOIN bundle_items bi ON bi.bundle_id = b.id
+        WHERE bi.item_id = ? AND b.pricing_mode = 'percent_off' LIMIT 1`,
+    ).bind(itemId),
+  ]);
+  if ((tiers!.results[0] as { n: number }).n > 0) return 'Remove the quantity tiers before removing the price.';
+  const b = bundle!.results[0] as { title: string } | undefined;
+  if (b) return `This item is in the percent-off bundle "${b.title}". Give that bundle a fixed price first.`;
+  return null;
+}
 
 items.patch('/:id{[0-9]+}', async (c) => {
   const item = await loadOwned(c, Number(c.req.param('id')));
@@ -277,6 +322,11 @@ items.patch('/:id{[0-9]+}', async (c) => {
   const errors = validateItem(input, final);
   if (Object.keys(errors).length) return invalid(c, errors as Record<string, string>);
 
+  if (input.price === null && item.price !== null) {
+    const blocker = await priceRemovalBlocker(c, item.id);
+    if (blocker) return invalid(c, { price: blocker });
+  }
+
   const cols = columns(input);
   if (!Object.keys(cols).length) return apiError(c, 400, 'nothing_to_update');
   cols.updated_at = Date.now();
@@ -285,7 +335,7 @@ items.patch('/:id{[0-9]+}', async (c) => {
   )
     .bind(...Object.values(cols), item.id)
     .first<ItemRow>();
-  return c.json({ item: toItem(row!, await getPhotos(c.env.DB, item.id)) });
+  return c.json({ item: await fullItem(c, row!) });
 });
 
 /** Copies fields, photos (sharing the same immutable R2 objects) and price tiers into a new draft. */
@@ -310,7 +360,7 @@ items.post('/:id{[0-9]+}/duplicate', async (c) => {
        SELECT ?, min_qty, unit_price FROM item_price_tiers WHERE item_id = ?`,
     ).bind(copy!.id, src.id),
   ]);
-  return c.json({ item: toItem(copy!, await getPhotos(c.env.DB, copy!.id)) }, 201);
+  return c.json({ item: await fullItem(c, copy!) }, 201);
 });
 
 // ------------------------------------------------------------------ photos
@@ -373,7 +423,7 @@ items.put('/:id{[0-9]+}/photos/order', async (c) => {
   await c.env.DB.batch(
     ids.map((id, i) => c.env.DB.prepare('UPDATE item_photos SET sort_order = ? WHERE id = ? AND item_id = ?').bind(i, id, item.id)),
   );
-  return c.json({ item: toItem(item, await getPhotos(c.env.DB, item.id)) });
+  return c.json({ item: await fullItem(c, item) });
 });
 
 export default items;

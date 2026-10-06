@@ -1,0 +1,9 @@
+---
+import Shell from '../layouts/Shell.astro';
+import ItemView from '../components/shop/ItemView.tsx';
+import '../styles/shop.css';
+---
+<Shell title="Item" nav="browse">
+  <p class="eyebrow back"><a href="/" onclick="if (history.length > 1 && document.referrer.startsWith(location.origin)) { history.back(); return false; }">← browse</a></p>
+  <ItemView client:only="preact" />
+</Shell>

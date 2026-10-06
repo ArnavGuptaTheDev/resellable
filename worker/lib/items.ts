@@ -1,4 +1,5 @@
 import type { Condition, InventoryItem, Item, ItemStatus, Photo } from '../../shared/items';
+import type { Tier } from '../../shared/pricing';
 
 export interface ItemRow {
   id: number;
@@ -46,8 +47,8 @@ function base(r: ItemRow) {
   };
 }
 
-export function toItem(r: ItemRow, photos: PhotoRow[]): Item {
-  return { ...base(r), description: r.description, photos: photos.map(toPhoto) };
+export function toItem(r: ItemRow, photos: PhotoRow[], tiers: Tier[] = []): Item {
+  return { ...base(r), description: r.description, photos: photos.map(toPhoto), tiers };
 }
 
 export function toInventoryItem(r: ItemRow & { cover_thumb: string | null; photo_count: number }): InventoryItem {

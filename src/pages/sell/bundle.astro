@@ -1,0 +1,11 @@
+---
+import Shell from '../../layouts/Shell.astro';
+import BundleEditor from '../../components/sell/BundleEditor.tsx';
+import '../../styles/sell.css';
+import '../../styles/shop.css';
+---
+<Shell title="Bundle" nav="sell">
+  <p class="eyebrow"><a href="/sell">inventory</a> / <a href="/sell/bundles">bundles</a> / edit</p>
+  <h1 class="glow-text">Bundle</h1>
+  <BundleEditor client:only="preact" />
+</Shell>
